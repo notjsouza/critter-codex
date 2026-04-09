@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "crittercodex-mobile",
+    "slug": "crittercodex-mobile",
+    "scheme": "crittercodex",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "CritterCodex uses your location to center the map and tag sightings.",
+        "NSCameraUsageDescription": "CritterCodex uses your camera so you can record critter sightings."
+      },
+      "bundleIdentifier": "com.anonymous.crittercodex-mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "CritterCodex uses your location to center the map and tag sightings."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CritterCodex uses your camera so you can record critter sightings."
+        }
+      ],
+      "@rnmapbox/maps"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
