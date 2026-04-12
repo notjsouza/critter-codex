@@ -62,6 +62,31 @@ EXPO_PUBLIC_API_BASE_URL=https://your-api-id.execute-api.region.amazonaws.com
 npm run start:lan
 ```
 
+## Terraform automation (create/destroy)
+
+Terraform files are in [backend-api/infra/terraform](backend-api/infra/terraform).
+
+1. Copy and edit variables:
+
+```bash
+cd backend-api/infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+```
+
+2. Create infra:
+
+```bash
+bash backend-api/scripts/terraform-up.sh
+```
+
+This now automatically writes `EXPO_PUBLIC_API_BASE_URL` to the root `.env.local`.
+
+3. Destroy infra:
+
+```bash
+bash backend-api/scripts/terraform-down.sh
+```
+
 ## Google OAuth2 SSO (optional)
 
 Configure these Lambda environment variables in your deployed stack:
@@ -113,3 +138,4 @@ Items are stored with this shape:
 - Entry visibility window is 24 hours (`displayUntilEpoch`).
 - DynamoDB record retention is ~7 days via TTL (`ttlEpoch`).
 - S3 objects under `entries/` expire after 1 day via lifecycle policy.
+- Terraform scripts are intentionally plain Bash and can be run as `bash backend-api/scripts/terraform-up.sh` and `bash backend-api/scripts/terraform-down.sh` without chmod.

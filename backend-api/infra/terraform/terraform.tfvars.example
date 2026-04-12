@@ -1,0 +1,14 @@
+aws_region = "us-east-1"
+project_name = "critter-codex"
+
+# Keep this aligned with your app deep link scheme.
+app_auth_redirect_uri = "crittercodex://auth"
+
+# Replace with strong secrets before apply.
+auth_token_secret = "replace-with-strong-random-token-secret"
+auth_state_secret = "replace-with-strong-random-state-secret"
+
+# Optional: required only when enabling Google SSO.
+google_oauth_client_id = ""
+google_oauth_client_secret = ""
+google_oauth_redirect_uri = ""
