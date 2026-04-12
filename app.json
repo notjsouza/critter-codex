@@ -40,6 +40,9 @@
     },
     "plugins": [
       [
+        "expo-dev-client"
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "CritterCodex uses your location to center the map and tag sightings."

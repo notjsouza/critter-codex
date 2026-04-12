@@ -213,9 +213,12 @@ export function SignInScreen({ onSignedIn }: SignInScreenProps) {
     setMessage(null);
 
     try {
-      await startHostedSignIn();
+      const step = await startHostedSignIn();
+      if (step === 'DONE') {
+        onSignedIn();
+      }
     } catch {
-      setError('Could not start sign-in. Check Amplify auth config and try again.');
+      setError('Could not start hosted sign-in. Check backend auth setup and try again.');
     } finally {
       setLoading(false);
     }

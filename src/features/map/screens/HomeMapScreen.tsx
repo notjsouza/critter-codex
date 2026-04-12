@@ -18,7 +18,6 @@ type MapboxModule = {
 
 function getMapboxModule(): MapboxModule | null {
 	try {
-		// Dynamic require keeps Expo Go startup from crashing when native module is not in the client.
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		return require('@rnmapbox/maps');
 	} catch {
@@ -130,8 +129,6 @@ export function HomeMapScreen() {
 	return (
 		<Screen>
 			<View style={styles.container}>
-				<Text style={styles.title}>Campus Map</Text>
-
 				<View style={styles.mapFrame} onLayout={handleMapLayout}>
 					{hasValidMapLayout ? (
 						<Mapbox.MapView style={styles.map} styleURL="mapbox://styles/mapbox/streets-v12">
@@ -164,33 +161,36 @@ export function HomeMapScreen() {
 							<Text style={styles.statusText}>Preparing map...</Text>
 						</View>
 					)}
+
+					<View style={styles.statusOverlay} pointerEvents="none">
+						{isLoading ? <Text style={styles.statusText}>Loading sightings...</Text> : null}
+						{isError ? <Text style={styles.statusErrorText}>Could not load latest sightings.</Text> : null}
+						{locationError ? <Text style={styles.statusErrorText}>{locationError}</Text> : null}
+						{!locationError && !userLocation ? <Text style={styles.statusText}>Locating you...</Text> : null}
+					</View>
+
+					<View style={styles.recenterOverlay} pointerEvents="box-none">
+						<Pressable
+							style={[styles.recenterButton, !userLocation ? styles.recenterButtonDisabled : null]}
+							disabled={!userLocation}
+							onPress={() => {
+								void (async () => {
+									try {
+										const current = await Location.getCurrentPositionAsync({
+											accuracy: Location.Accuracy.Balanced,
+										});
+										setUserLocation([current.coords.longitude, current.coords.latitude]);
+										setLocationError(null);
+									} catch {
+										setLocationError('Could not recenter to your current location.');
+									}
+								})();
+							}}
+						>
+							<Text style={styles.recenterButtonText}>Recenter</Text>
+						</Pressable>
+					</View>
 				</View>
-
-				{isLoading ? <Text style={styles.statusText}>Loading sightings...</Text> : null}
-				{isError ? <Text style={styles.statusErrorText}>Could not load latest sightings.</Text> : null}
-				{locationError ? <Text style={styles.statusErrorText}>{locationError}</Text> : null}
-				{!locationError && !userLocation ? <Text style={styles.statusText}>Locating you...</Text> : null}
-
-				<Pressable
-					style={[styles.recenterButton, !userLocation ? styles.recenterButtonDisabled : null]}
-					disabled={!userLocation}
-					onPress={() => {
-						// Re-requesting location gives a reliable recenter behavior after movement.
-						void (async () => {
-							try {
-								const current = await Location.getCurrentPositionAsync({
-									accuracy: Location.Accuracy.Balanced,
-								});
-								setUserLocation([current.coords.longitude, current.coords.latitude]);
-								setLocationError(null);
-							} catch {
-								setLocationError('Could not recenter to your current location.');
-							}
-						})();
-					}}
-				>
-					<Text style={styles.recenterButtonText}>Recenter</Text>
-				</Pressable>
 			</View>
 		</Screen>
 	);
@@ -199,8 +199,7 @@ export function HomeMapScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		padding: 16,
-		gap: 10,
+		backgroundColor: '#000000',
 	},
 	title: {
 		fontSize: 24,
@@ -209,18 +208,27 @@ const styles = StyleSheet.create({
 	},
 	mapFrame: {
 		flex: 1,
-		borderRadius: 16,
-		overflow: 'hidden',
-		borderWidth: 1,
-		borderColor: '#E2E8F0',
 	},
 	map: {
 		flex: 1,
+	},
+	statusOverlay: {
+		position: 'absolute',
+		left: 12,
+		right: 84,
+		top: 12,
+		gap: 8,
+	},
+	recenterOverlay: {
+		position: 'absolute',
+		right: 12,
+		bottom: 24,
 	},
 	mapLoadingState: {
 		flex: 1,
 		alignItems: 'center',
 		justifyContent: 'center',
+		backgroundColor: '#0F172A',
 	},
 	marker: {
 		width: 30,
@@ -236,9 +244,10 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 	},
 	recenterButton: {
-		height: 44,
-		borderRadius: 12,
-		backgroundColor: '#E2E8F0',
+		height: 48,
+		paddingHorizontal: 16,
+		borderRadius: 999,
+		backgroundColor: 'rgba(15, 23, 42, 0.78)',
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
@@ -247,7 +256,7 @@ const styles = StyleSheet.create({
 	},
 	recenterButtonText: {
 		fontWeight: '700',
-		color: '#0F172A',
+		color: '#FFFFFF',
 	},
 	userMarkerOuter: {
 		width: 22,
@@ -279,12 +288,19 @@ const styles = StyleSheet.create({
 		color: '#0EA5E9',
 	},
 	statusText: {
-		color: '#334155',
-		fontSize: 13,
-	},
-	statusErrorText: {
-		color: '#B91C1C',
+		color: '#FFFFFF',
 		fontSize: 13,
 		fontWeight: '600',
+		textShadowColor: 'rgba(0, 0, 0, 0.35)',
+		textShadowOffset: { width: 0, height: 1 },
+		textShadowRadius: 2,
+	},
+	statusErrorText: {
+		color: '#FCA5A5',
+		fontSize: 13,
+		fontWeight: '600',
+		textShadowColor: 'rgba(0, 0, 0, 0.35)',
+		textShadowOffset: { width: 0, height: 1 },
+		textShadowRadius: 2,
 	},
 });

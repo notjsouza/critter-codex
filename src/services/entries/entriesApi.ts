@@ -1,62 +1,10 @@
-import { generateClient } from 'aws-amplify/api';
-
-import { bootstrapAmplify, isAmplifyConfigured } from '../amplify/bootstrap';
+import { apiJson, apiRequest, isApiConfigured } from '../http/apiClient';
 import { mockEntries } from './mockEntries';
 import type { Entry } from '../../types/entry';
 
-bootstrapAmplify();
-const client = generateClient();
 let fallbackEntries: Entry[] = [...mockEntries];
 
-const listEntriesQuery = /* GraphQL */ `
-  query ListEntries {
-    listEntries {
-      items {
-        id
-        name
-        description
-        image
-        latitude
-        longitude
-      }
-    }
-  }
-`;
-
-const createEntryMutation = /* GraphQL */ `
-  mutation CreateEntry($input: CreateEntryInput!) {
-    createEntry(input: $input) {
-      id
-      name
-      description
-      image
-      latitude
-      longitude
-    }
-  }
-`;
-
-const deleteEntryMutation = /* GraphQL */ `
-  mutation DeleteEntry($input: DeleteEntryInput!) {
-    deleteEntry(input: $input) {
-      id
-    }
-  }
-`;
-
-type ListEntriesResponse = {
-  listEntries?: {
-    items?: Array<Entry | null> | null;
-  } | null;
-};
-
-type CreateEntryResponse = {
-  createEntry?: Entry | null;
-};
-
-type DeleteEntryResponse = {
-  deleteEntry?: { id: string } | null;
-};
+type ListEntriesResponse = Entry[] | { items?: Array<Entry | null> | null };
 
 function toEntry(item: Entry | null | undefined): Entry | null {
   if (!item?.id || !item.name) {
@@ -74,15 +22,14 @@ function toEntry(item: Entry | null | undefined): Entry | null {
 }
 
 export async function listEntries(): Promise<Entry[]> {
-  if (!isAmplifyConfigured()) {
+  if (!isApiConfigured()) {
     return [...fallbackEntries];
   }
 
-  const result = await client.graphql({
-    query: listEntriesQuery,
-  });
+  const response = await apiJson<ListEntriesResponse>('/entries');
+  const rawItems = Array.isArray(response) ? response : (response.items ?? []);
 
-  const items = ((result as { data?: ListEntriesResponse }).data?.listEntries?.items ?? [])
+  const items = rawItems
     .map((item) => toEntry(item ?? undefined))
     .filter((item): item is Entry => item != null);
 
@@ -98,7 +45,7 @@ export type CreateEntryInput = {
 };
 
 export async function createEntry(input: CreateEntryInput): Promise<Entry> {
-  if (!isAmplifyConfigured()) {
+  if (!isApiConfigured()) {
     const created: Entry = {
       id: String(Date.now()),
       name: input.name,
@@ -112,12 +59,15 @@ export async function createEntry(input: CreateEntryInput): Promise<Entry> {
     return created;
   }
 
-  const result = await client.graphql({
-    query: createEntryMutation,
-    variables: { input },
-  });
-
-  const created = toEntry((result as { data?: CreateEntryResponse }).data?.createEntry ?? undefined);
+  const created = toEntry(
+    await apiJson<Entry>('/entries', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    })
+  );
   if (!created) {
     throw new Error('Create entry failed: invalid response payload.');
   }
@@ -126,22 +76,17 @@ export async function createEntry(input: CreateEntryInput): Promise<Entry> {
 }
 
 export async function deleteEntry(id: string): Promise<string> {
-  if (!isAmplifyConfigured()) {
+  if (!isApiConfigured()) {
     fallbackEntries = fallbackEntries.filter((entry) => entry.id !== id);
     return id;
   }
 
-  const result = await client.graphql({
-    query: deleteEntryMutation,
-    variables: {
-      input: { id },
-    },
+  const response = await apiRequest(`/entries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
   });
-
-  const deletedId = (result as { data?: DeleteEntryResponse }).data?.deleteEntry?.id;
-  if (!deletedId) {
-    throw new Error('Delete entry failed: invalid response payload.');
+  if (!response.ok) {
+    throw new Error(`Delete entry failed (${response.status}).`);
   }
 
-  return deletedId;
+  return id;
 }
