@@ -1,10 +1,42 @@
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '../../../components/ui/Screen';
+import type { Entry } from '../../../types/entry';
+import { useDeleteEntryMutation } from '../hooks/useDeleteEntryMutation';
 import { useEntriesQuery } from '../hooks/useEntriesQuery';
+
+function isDisplayableImageUri(uri: string) {
+  return /^https?:\/\//.test(uri) || /^file:\/\//.test(uri) || /^data:image\//.test(uri);
+}
 
 export function EntriesListScreen() {
   const { data = [], isLoading, isError, refetch, isRefetching } = useEntriesQuery();
+  const deleteMutation = useDeleteEntryMutation();
+
+  const handleDelete = (entry: Entry) => {
+    Alert.alert('Delete sighting?', 'This will remove the entry from the map and list.', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              const result = await deleteMutation.mutateAsync(entry);
+              if (result.imageCleanupFailed) {
+                Alert.alert('Entry deleted', 'Entry was deleted, but image cleanup failed.');
+              }
+            } catch {
+              Alert.alert('Delete failed', 'Could not delete this entry. Please try again.');
+            }
+          })();
+        },
+      },
+    ]);
+  };
 
   return (
     <Screen>
@@ -39,8 +71,34 @@ export function EntriesListScreen() {
           ListEmptyComponent={<Text style={styles.empty}>No sightings yet.</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              {item.description ? <Text style={styles.cardDescription}>{item.description}</Text> : null}
+              <View style={styles.cardRow}>
+                {item.image ? (
+                  <View style={styles.thumbnailWrap}>
+                    {isDisplayableImageUri(item.image) ? (
+                      <Image source={{ uri: item.image }} style={styles.thumbnailImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.thumbnailPlaceholder}>
+                        <Text style={styles.thumbnailPlaceholderText}>IMG</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+
+                <View style={styles.cardTextWrap}>
+                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  {item.description ? <Text style={styles.cardDescription}>{item.description}</Text> : null}
+                </View>
+
+                <Pressable
+                  style={styles.deleteButton}
+                  disabled={deleteMutation.isPending}
+                  onPress={() => {
+                    handleDelete(item);
+                  }}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </Pressable>
+              </View>
             </View>
           )}
         />
@@ -70,6 +128,14 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     padding: 14,
     backgroundColor: '#FFFFFF',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardTextWrap: {
+    flex: 1,
   },
   cardTitle: {
     fontSize: 16,
@@ -105,6 +171,43 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  thumbnailWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E2E8F0',
+  },
+  thumbnailPlaceholderText: {
+    color: '#334155',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  deleteButton: {
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+  },
+  deleteButtonText: {
+    color: '#B91C1C',
+    fontSize: 12,
     fontWeight: '700',
   },
 });

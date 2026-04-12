@@ -134,6 +134,7 @@ export function HomeMapScreen() {
 					{hasValidMapLayout && userLocation ? (
 						<Mapbox.MapView style={styles.map} styleURL="mapbox://styles/mapbox/streets-v12">
 							<Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} />
+							{userLocation ? <Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} /> : null}
 
 							{data
 								.filter((entry) => entry.latitude != null && entry.longitude != null)
