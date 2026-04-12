@@ -5,6 +5,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import { NativeModules, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '../../../components/ui/Screen';
+import type { Entry } from '../../../types/entry';
 import { useEntriesQuery } from '../../entries/hooks/useEntriesQuery';
 
 type MapboxModule = {
@@ -65,6 +66,7 @@ export function HomeMapScreen() {
 	const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
 	const [hasValidMapLayout, setHasValidMapLayout] = useState(false);
+	const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
 
 	const handleMapLayout = (event: LayoutChangeEvent) => {
 		const { width, height } = event.nativeEvent.layout;
@@ -132,29 +134,35 @@ export function HomeMapScreen() {
 				<View style={styles.mapFrame} onLayout={handleMapLayout}>
 					{hasValidMapLayout ? (
 						<Mapbox.MapView style={styles.map} styleURL="mapbox://styles/mapbox/streets-v12">
-						{userLocation ? <Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} /> : null}
+							{userLocation ? <Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} /> : null}
 
-						{data
-							.filter((entry) => entry.latitude != null && entry.longitude != null)
-							.map((entry) => (
-								<Mapbox.MarkerView
-									key={entry.id}
-									id={entry.id}
-									coordinate={[entry.longitude as number, entry.latitude as number]}
-								>
-									<View style={styles.marker}>
-										<Text style={styles.markerText}>🐾</Text>
+							{data
+								.filter((entry) => entry.latitude != null && entry.longitude != null)
+								.map((entry) => (
+									<Mapbox.MarkerView
+										key={entry.id}
+										id={entry.id}
+										coordinate={[entry.longitude as number, entry.latitude as number]}
+									>
+										<Pressable
+											onPress={() => {
+												setSelectedEntry(entry);
+											}}
+										>
+											<View style={styles.marker}>
+												<Text style={styles.markerText}>🐾</Text>
+											</View>
+										</Pressable>
+									</Mapbox.MarkerView>
+								))}
+
+							{userLocation ? (
+								<Mapbox.MarkerView id="user-location" coordinate={userLocation}>
+									<View style={styles.userMarkerOuter}>
+										<View style={styles.userMarkerInner} />
 									</View>
 								</Mapbox.MarkerView>
-							))}
-
-						{userLocation ? (
-							<Mapbox.MarkerView id="user-location" coordinate={userLocation}>
-								<View style={styles.userMarkerOuter}>
-									<View style={styles.userMarkerInner} />
-								</View>
-							</Mapbox.MarkerView>
-						) : null}
+							) : null}
 						</Mapbox.MapView>
 					) : (
 						<View style={styles.mapLoadingState}>
@@ -190,6 +198,27 @@ export function HomeMapScreen() {
 							<Text style={styles.recenterButtonText}>Recenter</Text>
 						</Pressable>
 					</View>
+
+					{selectedEntry ? (
+						<View style={styles.detailOverlay}>
+							<View style={styles.detailCard}>
+								<Text style={styles.detailTitle}>{selectedEntry.name}</Text>
+								{selectedEntry.description ? (
+									<Text style={styles.detailDescription}>{selectedEntry.description}</Text>
+								) : (
+									<Text style={styles.detailDescription}>No description provided.</Text>
+								)}
+								<Pressable
+									style={styles.detailCloseButton}
+									onPress={() => {
+										setSelectedEntry(null);
+									}}
+								>
+									<Text style={styles.detailCloseButtonText}>Close</Text>
+								</Pressable>
+							</View>
+						</View>
+					) : null}
 				</View>
 			</View>
 		</Screen>
@@ -223,6 +252,40 @@ const styles = StyleSheet.create({
 		position: 'absolute',
 		right: 12,
 		bottom: 24,
+	},
+	detailOverlay: {
+		position: 'absolute',
+		left: 12,
+		right: 12,
+		bottom: 84,
+	},
+	detailCard: {
+		borderRadius: 12,
+		backgroundColor: 'rgba(15, 23, 42, 0.92)',
+		padding: 12,
+		gap: 8,
+	},
+	detailTitle: {
+		color: '#FFFFFF',
+		fontSize: 16,
+		fontWeight: '700',
+	},
+	detailDescription: {
+		color: '#E2E8F0',
+		lineHeight: 20,
+	},
+	detailCloseButton: {
+		alignSelf: 'flex-start',
+		height: 34,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		backgroundColor: '#0EA5E9',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	detailCloseButtonText: {
+		color: '#FFFFFF',
+		fontWeight: '700',
 	},
 	mapLoadingState: {
 		flex: 1,
