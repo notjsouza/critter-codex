@@ -32,6 +32,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+terraform.tfvars
 
 # typescript
 *.tsbuildinfo
@@ -39,6 +40,3 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
-# Amplify local artifacts
-.amplify/
