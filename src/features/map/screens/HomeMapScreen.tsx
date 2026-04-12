@@ -65,6 +65,7 @@ export function HomeMapScreen() {
 	const { data = [], isLoading, isError } = useEntriesQuery();
 	const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
+	const [isLocatingUser, setIsLocatingUser] = useState(true);
 	const [hasValidMapLayout, setHasValidMapLayout] = useState(false);
 	const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
 
@@ -73,41 +74,39 @@ export function HomeMapScreen() {
 		setHasValidMapLayout(width > 0 && height > 0);
 	};
 
+	const requestAndSetCurrentLocation = async () => {
+		setIsLocatingUser(true);
+		try {
+			const permission = await Location.requestForegroundPermissionsAsync();
+			if (permission.status !== 'granted') {
+				setLocationError('Location permission is required to center the map.');
+				setUserLocation(null);
+				return;
+			}
+
+			const current = await Location.getCurrentPositionAsync({
+				accuracy: Location.Accuracy.Balanced,
+			});
+
+			setUserLocation([current.coords.longitude, current.coords.latitude]);
+			setLocationError(null);
+		} catch {
+			setLocationError('Could not read your current location.');
+			setUserLocation(null);
+		} finally {
+			setIsLocatingUser(false);
+		}
+	};
+
 	useEffect(() => {
 		let active = true;
 
-		async function loadCurrentLocation() {
-			try {
-				const permission = await Location.requestForegroundPermissionsAsync();
-				if (!active) {
-					return;
-				}
-
-				if (permission.status !== 'granted') {
-					setLocationError('Location permission is required to center the map.');
-					return;
-				}
-
-				const current = await Location.getCurrentPositionAsync({
-					accuracy: Location.Accuracy.Balanced,
-				});
-
-				if (!active) {
-					return;
-				}
-
-				setUserLocation([current.coords.longitude, current.coords.latitude]);
-				setLocationError(null);
-			} catch {
-				if (!active) {
-					return;
-				}
-
-				setLocationError('Could not read your current location.');
+		void (async () => {
+			await requestAndSetCurrentLocation();
+			if (!active) {
+				return;
 			}
-		}
-
-		void loadCurrentLocation();
+		})();
 
 		return () => {
 			active = false;
@@ -132,8 +131,9 @@ export function HomeMapScreen() {
 		<Screen>
 			<View style={styles.container}>
 				<View style={styles.mapFrame} onLayout={handleMapLayout}>
-					{hasValidMapLayout ? (
+					{hasValidMapLayout && userLocation ? (
 						<Mapbox.MapView style={styles.map} styleURL="mapbox://styles/mapbox/streets-v12">
+							<Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} />
 							{userLocation ? <Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} /> : null}
 
 							{data
@@ -167,14 +167,24 @@ export function HomeMapScreen() {
 					) : (
 						<View style={styles.mapLoadingState}>
 							<Text style={styles.statusText}>Preparing map...</Text>
+							{locationError ? <Text style={styles.statusErrorText}>{locationError}</Text> : null}
+							{locationError ? (
+								<Pressable
+									style={styles.retryLocationButton}
+									onPress={() => {
+										void requestAndSetCurrentLocation();
+									}}
+								>
+									<Text style={styles.retryLocationButtonText}>Try again</Text>
+								</Pressable>
+							) : null}
 						</View>
 					)}
 
 					<View style={styles.statusOverlay} pointerEvents="none">
 						{isLoading ? <Text style={styles.statusText}>Loading sightings...</Text> : null}
 						{isError ? <Text style={styles.statusErrorText}>Could not load latest sightings.</Text> : null}
-						{locationError ? <Text style={styles.statusErrorText}>{locationError}</Text> : null}
-						{!locationError && !userLocation ? <Text style={styles.statusText}>Locating you...</Text> : null}
+						{isLocatingUser ? <Text style={styles.statusText}>Locating you...</Text> : null}
 					</View>
 
 					<View style={styles.recenterOverlay} pointerEvents="box-none">
@@ -291,7 +301,20 @@ const styles = StyleSheet.create({
 		flex: 1,
 		alignItems: 'center',
 		justifyContent: 'center',
+		gap: 10,
 		backgroundColor: '#0F172A',
+	},
+	retryLocationButton: {
+		height: 38,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		backgroundColor: '#0EA5E9',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	retryLocationButtonText: {
+		color: '#FFFFFF',
+		fontWeight: '700',
 	},
 	marker: {
 		width: 30,
