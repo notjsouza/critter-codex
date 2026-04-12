@@ -1,0 +1,280 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Critter Codex API (Lambda + DynamoDB + S3)
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        ENTRIES_TABLE_NAME: !Ref EntriesTable
+        ENTRY_IMAGES_BUCKET_NAME: !Ref EntryImagesBucket
+        USERS_TABLE_NAME: !Ref UsersTable
+        APP_AUTH_REDIRECT_URI: 'crittercodex://auth'
+        AUTH_TOKEN_SECRET: 'replace-me-auth-token-secret'
+        AUTH_STATE_SECRET: 'replace-me-auth-state-secret'
+        GOOGLE_OAUTH_CLIENT_ID: ''
+        GOOGLE_OAUTH_CLIENT_SECRET: ''
+        GOOGLE_OAUTH_REDIRECT_URI: ''
+
+Resources:
+  CritterHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowOrigins:
+          - '*'
+
+  EntriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttlEpoch
+        Enabled: true
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+
+  EntryImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireEntryImagesAfterOneDay
+            Status: Enabled
+            Prefix: entries/
+            ExpirationInDays: 1
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - DELETE
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - ETag
+
+  ListEntriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/listEntries.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EntriesTable
+      Events:
+        ListEntries:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /entries
+            Method: GET
+
+  CreateEntryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/createEntry.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntriesTable
+      Events:
+        CreateEntry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /entries
+            Method: POST
+
+  DeleteEntryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteEntry.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntriesTable
+      Events:
+        DeleteEntry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /entries/{id}
+            Method: DELETE
+
+  PresignUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/presignUpload.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref EntryImagesBucket
+      Events:
+        PresignUpload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /uploads/presign
+            Method: POST
+
+  DeleteUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/deleteUpload.handler
+      CodeUri: .
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref EntryImagesBucket
+      Events:
+        DeleteUpload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /uploads
+            Method: DELETE
+
+  AuthSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authSignUp.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        AuthSignUp:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/sign-up
+            Method: POST
+
+  AuthConfirmSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authConfirmSignUp.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        AuthConfirmSignUp:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/confirm-sign-up
+            Method: POST
+
+  AuthResendConfirmationCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authResendConfirmationCode.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        AuthResendConfirmationCode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/resend-confirmation-code
+            Method: POST
+
+  AuthSignInFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authSignIn.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        AuthSignIn:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/sign-in
+            Method: POST
+
+  AuthSignOutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authSignOut.handler
+      CodeUri: .
+      Events:
+        AuthSignOut:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/sign-out
+            Method: POST
+
+  AuthHostedSignInFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authHostedSignIn.handler
+      CodeUri: .
+      Events:
+        AuthHostedSignIn:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/hosted-sign-in
+            Method: POST
+
+  AuthOAuthCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authOAuthCallback.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        AuthOAuthCallback:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CritterHttpApi
+            Path: /auth/oauth/callback
+            Method: GET
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL to configure as EXPO_PUBLIC_API_BASE_URL
+    Value: !Sub 'https://${CritterHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+  EntriesTableName:
+    Value: !Ref EntriesTable
+  UsersTableName:
+    Value: !Ref UsersTable
+  EntryImagesBucketName:
+    Value: !Ref EntryImagesBucket
