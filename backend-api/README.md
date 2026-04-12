@@ -79,7 +79,11 @@ cp terraform.tfvars.example terraform.tfvars
 bash backend-api/scripts/terraform-up.sh
 ```
 
-This now automatically writes `EXPO_PUBLIC_API_BASE_URL` to the root `.env.local`.
+This automatically:
+- Applies Terraform to create the API, DynamoDB, and S3 resources
+- Writes `EXPO_PUBLIC_API_BASE_URL` to the root `.env.local`
+- Captures the generated `oauth_callback_url` and fills `google_oauth_redirect_uri` in `terraform.tfvars`
+- Prints the exact redirect URI to register in Google Cloud Console
 
 3. Destroy infra:
 

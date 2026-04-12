@@ -74,10 +74,16 @@ export function HomeMapScreen() {
 		setHasValidMapLayout(width > 0 && height > 0);
 	};
 
-	const requestAndSetCurrentLocation = async () => {
+	const requestAndSetCurrentLocation = async (isActive: boolean = true) => {
+		if (!isActive) {
+			return;
+		}
 		setIsLocatingUser(true);
 		try {
 			const permission = await Location.requestForegroundPermissionsAsync();
+			if (!isActive) {
+				return;
+			}
 			if (permission.status !== 'granted') {
 				setLocationError('Location permission is required to center the map.');
 				setUserLocation(null);
@@ -88,25 +94,29 @@ export function HomeMapScreen() {
 				accuracy: Location.Accuracy.Balanced,
 			});
 
+			if (!isActive) {
+				return;
+			}
+
 			setUserLocation([current.coords.longitude, current.coords.latitude]);
 			setLocationError(null);
 		} catch {
+			if (!isActive) {
+				return;
+			}
 			setLocationError('Could not read your current location.');
 			setUserLocation(null);
 		} finally {
-			setIsLocatingUser(false);
+			if (isActive) {
+				setIsLocatingUser(false);
+			}
 		}
 	};
 
 	useEffect(() => {
 		let active = true;
 
-		void (async () => {
-			await requestAndSetCurrentLocation();
-			if (!active) {
-				return;
-			}
-		})();
+		void requestAndSetCurrentLocation(active);
 
 		return () => {
 			active = false;
@@ -134,7 +144,6 @@ export function HomeMapScreen() {
 					{hasValidMapLayout && userLocation ? (
 						<Mapbox.MapView style={styles.map} styleURL="mapbox://styles/mapbox/streets-v12">
 							<Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} />
-							{userLocation ? <Mapbox.Camera centerCoordinate={userLocation} zoomLevel={15} /> : null}
 
 							{data
 								.filter((entry) => entry.latitude != null && entry.longitude != null)
