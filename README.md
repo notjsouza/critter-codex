@@ -10,12 +10,14 @@ React Native MVP scaffold for CritterCodex, aligned to the PRD and configured fo
 - Entries list screen wired to shared query data.
 - Capture flow implemented: camera capture, retake, form validation, optional location tagging.
 - Create-entry orchestration implemented: image upload -> entry create -> cache update.
-- Partial-failure handling implemented for upload success + mutation failure (cleanup attempted).
+- Delete-entry orchestration implemented with optimistic cache update, rollback on API failure, and best-effort image cleanup.
+- Partial-failure handling implemented for upload success + create failure (cleanup attempted) and delete success + image cleanup failure.
 - REST data/storage service layer implemented for Lambda + DynamoDB + S3 style backends.
+- Backend visibility window is 24 hours by default, with optional history retrieval up to ~7 days.
 
 ## Prerequisites
 
-1. Node 18+.
+1. Node 20+ recommended (Node 18+ supported for app-only local work).
 2. Expo tooling (`npx expo` works without global install).
 3. Mapbox account and tokens.
 4. AWS account + API Gateway/Lambda/DynamoDB/S3 resources (or equivalent local mock API).
@@ -34,7 +36,7 @@ Set `EXPO_PUBLIC_API_BASE_URL` and provide these endpoints:
 
 1. `GET /entries` -> returns `Entry[]` or `{ items: Entry[] }`.
 2. `POST /entries` -> creates an entry and returns `Entry`.
-3. `DELETE /entries/:id` -> deletes an entry.
+3. `DELETE /entries/{id}` -> deletes an entry.
 4. `POST /uploads/presign` -> returns `{ key, uploadUrl }` for direct S3 upload.
 5. `DELETE /uploads?key=<object-key>` -> deletes uploaded object for cleanup.
 
@@ -87,13 +89,15 @@ npm run ios:device
 
 - If `EXPO_PUBLIC_API_BASE_URL` is set, entries and image uploads use your REST backend.
 - If `EXPO_PUBLIC_API_BASE_URL` is not set, the app falls back to in-memory/mock behavior for entries and local image URIs.
+- Backend `GET /entries` returns only active sightings in the 24-hour display window by default.
+- Backend history mode is available via `GET /entries?includeHistory=true` or `GET /entries?window=7d`.
 - If backend auth endpoints are not available, email sign-in uses a local device session fallback for development.
 - For Google SSO, configure backend `GOOGLE_OAUTH_*` env vars and callback path `/auth/oauth/callback`.
 
 ## Next recommended steps
 
 1. Finalize hosted auth callback/logout URLs for mobile redirect flow.
-2. Implement delete-entry orchestration with storage object cleanup + UI rollback.
-3. Add image download rendering for list/map thumbnails.
+2. Add image key resolution/download so S3 object keys render as thumbnails in list/map views.
+3. Add UI controls for switching between active-window and history query modes.
 4. Add unit/integration coverage for service wrappers and mutation orchestration.
 5. Add E2E smoke flow for sign-in -> map -> capture -> create -> list.

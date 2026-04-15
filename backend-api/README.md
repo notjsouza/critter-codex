@@ -66,17 +66,22 @@ npm run start:lan
 
 Terraform files are in [backend-api/infra/terraform](backend-api/infra/terraform).
 
-1. Copy and edit variables:
+1. Copy and edit variables (from repo root):
 
 ```bash
-cd backend-api/infra/terraform
-cp terraform.tfvars.example terraform.tfvars
+cp backend-api/infra/terraform/terraform.tfvars.example backend-api/infra/terraform/terraform.tfvars
 ```
 
 2. Create infra:
 
 ```bash
 bash backend-api/scripts/terraform-up.sh
+```
+
+If your current directory is `backend-api`, run:
+
+```bash
+bash scripts/terraform-up.sh
 ```
 
 This automatically:
@@ -89,6 +94,12 @@ This automatically:
 
 ```bash
 bash backend-api/scripts/terraform-down.sh
+```
+
+If your current directory is `backend-api`, run:
+
+```bash
+bash scripts/terraform-down.sh
 ```
 
 ## Google OAuth2 SSO (optional)
