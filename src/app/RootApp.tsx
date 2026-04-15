@@ -3,7 +3,6 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { RootNavigator } from '../navigation/RootNavigator';
 import { hasValidSession } from '../services/amplify/auth';
-import { bootstrapAmplify } from '../services/amplify/bootstrap';
 import { AppProviders } from './AppProviders';
 
 export function RootApp() {
@@ -11,8 +10,6 @@ export function RootApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    bootstrapAmplify();
-
     async function init() {
       const hasSession = await hasValidSession();
       setIsAuthenticated(hasSession);

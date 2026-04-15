@@ -9,7 +9,6 @@ export function HomeMapScreen() {
   return (
     <Screen>
       <View style={styles.container}>
-        <Text style={styles.title}>Campus Map (Web)</Text>
 
         <View style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>Map view is mobile-only for now</Text>

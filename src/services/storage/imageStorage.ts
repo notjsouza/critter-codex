@@ -1,35 +1,59 @@
-import { remove, uploadData } from 'aws-amplify/storage';
+import { apiJson, apiRequest, isApiConfigured } from '../http/apiClient';
 
-import { isAmplifyConfigured } from '../amplify/bootstrap';
-
-function buildImageKey() {
-  return `entries/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-}
+type PresignUploadResponse = {
+  key: string;
+  uploadUrl: string;
+  publicUrl?: string;
+};
 
 export async function uploadEntryImage(localUri: string): Promise<string> {
-  if (!isAmplifyConfigured()) {
+  if (!isApiConfigured()) {
     return localUri;
+  }
+
+  const presign = await apiJson<PresignUploadResponse>('/uploads/presign', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contentType: 'image/jpeg',
+      extension: 'jpg',
+    }),
+  });
+
+  if (!presign.key || !presign.uploadUrl) {
+    throw new Error('Image upload failed: invalid presign response.');
   }
 
   const response = await fetch(localUri);
   const blob = await response.blob();
-  const imageKey = buildImageKey();
 
-  await uploadData({
-    path: imageKey,
-    data: blob,
-    options: {
-      contentType: 'image/jpeg',
+  const uploadResponse = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'image/jpeg',
     },
-  }).result;
+    body: blob,
+  });
 
-  return imageKey;
+  if (!uploadResponse.ok) {
+    throw new Error(`Image upload failed (${uploadResponse.status}).`);
+  }
+
+  return presign.key;
 }
 
 export async function deleteEntryImage(imageKey: string): Promise<void> {
-  if (!isAmplifyConfigured()) {
+  if (!isApiConfigured()) {
     return;
   }
 
-  await remove({ path: imageKey });
+  const response = await apiRequest(`/uploads?key=${encodeURIComponent(imageKey)}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Delete image failed (${response.status}).`);
+  }
 }
